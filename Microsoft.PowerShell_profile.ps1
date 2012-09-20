@@ -290,3 +290,6 @@ function gitM-UpdateSASResources()
 $env:Path += ";C:\bin"
 # Load posh-git example profile
 . 'D:\Programare\Git Powershell integration\posh-git\profile.example.ps1'
+
+
+
