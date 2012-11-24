@@ -1,0 +1,2 @@
+document\.All\.{[a-zA-Z]+}\.getattribute\(\"\"{[a-zA-Z]+}\"\"\)
+document.All.\1.\2
