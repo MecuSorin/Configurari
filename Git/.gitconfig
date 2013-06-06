@@ -1,0 +1,45 @@
+[user]
+	email = smecu@alarma.ro
+	name = Mecu Sorin
+[merge]
+	summary = true
+	tool = kdiff3
+[mergetool "kdiff3"]
+	path = c:/Program Files (x86)/KDiff3/kdiff3.exe
+	keepBackup = false
+	trustExitCode = false
+  cmd ='kdiff3 $BASE $LOCAL $REMOTE $MERGED'
+[core]
+	excludesfile = ~/.gitignore
+[color]
+	diff = auto
+	status = auto
+	branch = auto
+[alias]
+  #log in nice format
+	lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset' --abbrev-commit --date=relative
+	
+	# ignore file changes
+	skip = update-index --assume-unchanged
+ 	uiau = update-index --assume-unchanged
+
+  # remove ignore file changes
+  unskip = update-index --no-assume-unchanged
+  uinau = update-index --no-assume-unchanged
+
+  # list ignored files
+  list-Skip = ls-files -v | where { $_ -cmatch "^[a-z].*$"}
+  list-Skip1 = ls-files -v | where { "$_" -cmatch "^[a-z].*$"}
+  list-Skip2 = ls-files -v | ? { "$_" -cmatch "^[a-z].*$"}
+  
+  
+  
+  luiau = ls-files -v
+	luiaut = !"git ls-files -v | StartWithLower"
+  #luiau = ls-files -v | ? { $_-cmatch "^[a-z].*$"}
+  # list all files
+
+  
+  #git uinau $(git luiau | ? { $_-cmatch '^[a-z].*$'} | ForEach-Object{ $_.Substring(2)})
+  #git luiau | ? { $_-cmatch '^[a-z].*$'}
+

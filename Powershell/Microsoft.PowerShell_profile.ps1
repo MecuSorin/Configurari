@@ -26,11 +26,15 @@ function Git-CommitAllWithSVNVersionMessage
 {
 	$svnVersionReply = svnversion.exe
 	$version = Select-String -InputObject $svnVersionReply -Pattern "\d+:(\d+).*" | %{ $_.Matches[0].Groups[1].Value }
-	if(!$version)
+	if($version)
 	{
 		git add -A
-		git commit -am "SVN $svnVersion"
+		git commit -am "SVN $version"
 	}
+	else
+	{
+		Write-Host "Unable to get the SVN version for the commit" -ForegroundColor Red	
+	}	
 }
 
 function Git-MergeInMaster
@@ -61,12 +65,91 @@ function Substring_2
      $input | ForEach-Object{ $_.Substring(2)}
 }
 
-function git-luiau
+function git-list-skip
 {
-     git luiau | StartWithLower | Substring_2
+	git ls-files -v | StartWithLower | Substring_2
 }
 
-function gitM-status()
+function git-skip-list
+{
+	git ls-files -v | StartWithLower | Substring_2
+}
+
+function UserWantsToStop([string]$question)
+{
+	$yesOption = New-Object System.Management.Automation.Host.ChoiceDescription "&Da",""
+	$noOption = New-Object System.Management.Automation.Host.ChoiceDescription "&Nu",""
+	$choices = [System.Management.Automation.Host.ChoiceDescription[]]($yesOption, $noOption)
+	$caption = "Warning!"
+	$message = "Do you want to proceed with " + $question
+	$result = $Host.UI.PromptForChoice($caption,$message,$choices,0)
+	if($result -eq 0) 
+	{ 
+		Write-Host -fore Green "You answered DA" 
+		return $FALSE
+	}
+	if($result -eq 1) 
+	{ 
+		Write-Host -fore Red "You answered NU" 
+		return $TRUE
+	}
+}
+
+function Publish-Downloader() 
+{
+	$currentDataDownloadSolutionDir = "c:\Users\smecu\Documents\Visual Studio 2010\Projects\SASCurrentDataDownload"
+	$gitRepoDir = "e:\t\Downloader"
+	$gitDir = "e:/t/Downloader"
+
+	#BUILD SOLUTION
+	& "$env:SystemRoot\Microsoft.Net\Framework\v3.5\MsBuild.exe" $($currentDataDownloadSolutionDir+"\SASCurrentDataDownload.sln") /maxcpucount /verbosity:minimal /t:ReBuild "/p:Configuration=Debug"
+	Write-Host -Fore Cyan "Solution build terminated"
+
+	#COPY FILES TO GIT REPO Dir
+	if( UserWantsToStop "Copy to git repo" ) { return }
+	Get-ChildItem $($currentDataDownloadSolutionDir + "\SASCurrentDataDownload.Service\Bin\Debug") | ? { !($_ -match "^(.*config|.*log|.*\.vshost\..*)$") } | foreach { Copy-Item $_.FullName -Destination $gitRepoDir }
+	Write-Host -Fore Cyan "Done files copy"
+
+	#COMMIT CHANGES
+	if( UserWantsToStop "Commit changes to remote" ) { return }
+	$messageFromSourceGitRepo = & git --git-dir="$($currentDataDownloadSolutionDir + "\.git")" --work-tree=$currentDataDownloadSolutionDir log -1 --pretty=%B
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir add -A
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir commit -am $messageFromSourceGitRepo
+	Write-Host -Fore Cyan "Commited the files"
+
+	#PUBLISH CHANGES TO REMOTE
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir push origin master
+	Write-Host -Fore Cyan "Published the files"
+}
+
+function Publish-Site()
+{
+	$solutionDir = "c:\Users\smecu\Documents\Visual Studio 2010\Projects\Web Sandbox\SASFleetSite"
+	$gitRepoDir = "e:\t\SiteAuto"
+	#http://www.digitallycreated.net/Blog/59/locally-publishing-a-vs2010-asp.net-web-application-using-msbuild
+	#BUILD SOLUTION
+	& "$env:SystemRoot\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe" $($solutionDir+"\SASFleetSite.sln") /m /v:minimal /t:ReBuild /p:Configuration=Debug
+	Write-Host -Fore Cyan "Solution build terminated"
+
+	#COPY FILES TO GIT REPO Dir
+	if( UserWantsToStop "Copy to git repo" ) { return }
+	& "$env:SystemRoot\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe" /m /v:minimal $($solutionDir+"\SASFleetSite\SASFleetSite.csproj") $("/p:Platform=AnyCPU;Configuration=Debug;PublishDestination="+$gitRepoDir) /t:PublishToFileSystem
+	Write-Host -Fore Cyan "Done files copy"
+
+	#COMMIT CHANGES
+	if( UserWantsToStop "Commit changes to remote" ) { return }
+	$messageFromSourceGitRepo = & git --git-dir="$($solutionDir + "\.git")" --work-tree=$solutionDir log -1 --pretty=%B
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir add -A
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir commit -am $messageFromSourceGitRepo
+	Write-Host -Fore Cyan "Commited the files"
+
+	#PUBLISH CHANGES TO REMOTE
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir push origin master
+	Write-Host -Fore Cyan "Published the files"
+}
+
+
+function x_gitM-status()
 {
     $MariusDir = "d:\Programare\_Work\Marius"
     d:
@@ -80,7 +163,7 @@ function gitM-status()
     Write-Host "Done" -ForegroundColor DarkGreen
 }
 
-function gitM-log()
+function x_gitM-log()
 {
     param([string]$numberOfLogMessages = "-4")
     $MariusDir = "d:\Programare\_Work\Marius"
@@ -95,7 +178,7 @@ function gitM-log()
     Write-Host "Done" -ForegroundColor DarkGreen
 }
 
-function gitM-NextDir()
+function x_gitM-NextDir()
 {
     $MariusDir = "d:\Programare\_Work\Marius\"
     $MariusDirWithoutSeparator = "d:\Programare\_Work\Marius"
@@ -112,7 +195,7 @@ function gitM-NextDir()
     }
 }
 
-function gitM-Checkout([string]$branchName)
+function x_gitM-Checkout([string]$branchName)
 {
     $MariusDir = "d:\Programare\_Work\Marius"
     d:
@@ -126,7 +209,7 @@ function gitM-Checkout([string]$branchName)
     Write-Host "Done" -ForegroundColor DarkGreen
 }
 
-function gitM-CheckoutNew([string]$branchName)
+function x_gitM-CheckoutNew([string]$branchName)
 {
     $MariusDir = "d:\Programare\_Work\Marius"
     d:
@@ -140,7 +223,7 @@ function gitM-CheckoutNew([string]$branchName)
     Write-Host "Done" -ForegroundColor DarkGreen
 }
 
-function gitM-CommitChangesToCurrentBranch([string]$commitStatement)
+function x_gitM-CommitChangesToCurrentBranch([string]$commitStatement)
 {
     $MariusDir = "d:\Programare\_Work\Marius"
     d:
@@ -155,7 +238,7 @@ function gitM-CommitChangesToCurrentBranch([string]$commitStatement)
     Write-Host "Done" -ForegroundColor DarkGreen
 }
 
-function gitM-MergeMasterWithBranch([string]$branchName)
+function x_gitM-MergeMasterWithBranch([string]$branchName)
 {
     $MariusDir = "d:\Programare\_Work\Marius"
     d:
@@ -169,7 +252,7 @@ function gitM-MergeMasterWithBranch([string]$branchName)
     Write-Host "Done" -ForegroundColor DarkGreen
 }
 
-function gitM-BranchShow()
+function x_gitM-BranchShow()
 {
     $MariusDir = "d:\Programare\_Work\Marius"
     d:
@@ -183,7 +266,7 @@ function gitM-BranchShow()
     Write-Host "Done" -ForegroundColor DarkGreen
 }
 
-function gitM-BranchDelete([string]$branchName)
+function x_gitM-BranchDelete([string]$branchName)
 {
     $MariusDir = "d:\Programare\_Work\Marius"
     d:
@@ -197,7 +280,7 @@ function gitM-BranchDelete([string]$branchName)
     Write-Host "Done" -ForegroundColor DarkGreen
 }
 
-function gitHelper-MariusStatus_Dir ()
+function x_gitHelper-MariusStatus_Dir ()
 {
     param([string]$MariusDir, [string]$dirName)
     Write-Host $($MariusDir+"\"+$dirName) -Fore DarkBlue
@@ -206,7 +289,7 @@ function gitHelper-MariusStatus_Dir ()
 }
 
 
-function gitHelper-MariusLog_Dir ()
+function x_gitHelper-MariusLog_Dir ()
 {
     param([string]$MariusDir, [string]$dirName, [string]$numberOfLogMessages = "-4")
     Write-Host $($MariusDir+"\"+$dirName) -Fore DarkBlue
@@ -215,7 +298,7 @@ function gitHelper-MariusLog_Dir ()
 }
 
 
-function gitHelper-MariusBranchShow_Dir ()
+function x_gitHelper-MariusBranchShow_Dir ()
 {
     param([string]$MariusDir, [string]$dirName)
     Write-Host $($MariusDir+"\"+$dirName) -Fore DarkBlue
@@ -223,7 +306,7 @@ function gitHelper-MariusBranchShow_Dir ()
     git branch
 }
 
-function gitHelper-MariusBranchDelete_Dir ()
+function x_gitHelper-MariusBranchDelete_Dir ()
 {
     param([string]$MariusDir, [string]$dirName, [string]$branchName)
     Write-Host $($MariusDir+"\"+$dirName) -Fore DarkBlue
@@ -232,7 +315,7 @@ function gitHelper-MariusBranchDelete_Dir ()
 }
   
 
-function gitHelper-MariusCheckout_Dir()
+function x_gitHelper-MariusCheckout_Dir()
 {
     param([string]$MariusDir, [string]$dirName, [string]$branchName)
     Write-Host $($MariusDir+"\"+$dirName) -Fore DarkBlue
@@ -240,7 +323,7 @@ function gitHelper-MariusCheckout_Dir()
     git checkout $branchName
 }
 
-function gitHelper-MariusCheckoutNew_Dir()
+function x_gitHelper-MariusCheckoutNew_Dir()
 {
     param([string]$MariusDir, [string]$dirName, [string]$branchName)
     Write-Host $($MariusDir+"\"+$dirName) -Fore DarkBlue
@@ -248,7 +331,7 @@ function gitHelper-MariusCheckoutNew_Dir()
     git checkout -b $branchName
 }
 
-function gitHelper-MariusMergeMasterWithBranch_Dir()
+function x_gitHelper-MariusMergeMasterWithBranch_Dir()
 {
     param([string]$MariusDir, [string]$dirName, [string]$branchName)
     Write-Host $($MariusDir+"\"+$dirName) -Fore DarkBlue
@@ -257,7 +340,7 @@ function gitHelper-MariusMergeMasterWithBranch_Dir()
     git merge $branchName
 }
 
-function gitHelper-MariusCommitChangesToCurrentBranch_Dir()
+function x_gitHelper-MariusCommitChangesToCurrentBranch_Dir()
 {
     param([string]$MariusDir, [string]$dirName, [string]$commitStatement)
     
@@ -267,7 +350,7 @@ function gitHelper-MariusCommitChangesToCurrentBranch_Dir()
     git commit -am "$commitStatement"
 }
 
-function gitM-UpdateSASResources()
+function x_gitM-UpdateSASResources()
 {
     $sourceDir = "c:\Users\smecu\Documents\Visual Studio 2010\Projects\SASGDesktop Trunk\SASGDesktop\bin\Debug"
     $destinationDir = "d:\Programare\_Work\Marius\_DllResources\SAS"

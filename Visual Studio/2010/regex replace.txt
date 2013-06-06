@@ -1,2 +1,13 @@
 document\.All\.{[a-zA-Z]+}\.getattribute\(\"\"{[a-zA-Z]+}\"\"\)
 document.All.\1.\2
+
+adauga un name attribute
+ id=""{[a-zA-Z0-9]+}""
+ id=""\1"" name=""\2""
+
+cautare dupa .val care nu are ( dupa
+\)\.val[^(]
+
+
+="\{Binding ConverterParameter={[a-z_A-Z]+},:b*Source=\{StaticResource CultureProvider\},:b*Path=Culture,:b*Converter=\{StaticResource LocalizationConverter\}\}"
+="{local:Translate StringId=\1}"
