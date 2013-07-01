@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+ <Target Name="ReBuild">
+  <MSBuild Projects="c:\Users\smecu\Documents\Visual Studio 2010\Projects\SASCurrentDataDownload\SASCurrentDataDownload.sln" Properties="Configuration=Debug;Platform=Mixed Platforms" />
+ </Target>
+</Project>

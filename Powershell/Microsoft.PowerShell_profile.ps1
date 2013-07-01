@@ -95,30 +95,45 @@ function UserWantsToStop([string]$question)
 	}
 }
 
-function Publish-Downloader() 
+function Publish-Downloader_Test()
 {
+	XPublish-DownloaderProductie "Test" "c:\Users\smecu\AppData\Roaming\SASG\SASFleetPro\"
+}
+
+function Publish-Downloader_Productie()
+{
+	XPublish-DownloaderProductie "master" "e:\Programare\SAS\SASGDesktop\Productie\2013 02 14\SASFleetPro\"
+}
+
+function XPublish-DownloaderProductie() 
+{
+	param([string]$branch, [string]$resourcesDir)
 	$currentDataDownloadSolutionDir = "c:\Users\smecu\Documents\Visual Studio 2010\Projects\SASCurrentDataDownload"
 	$gitRepoDir = "e:\t\Downloader"
 	$gitDir = "e:/t/Downloader"
+	$resourcesNames = @("Core.DLL", "SASGWcf.DLL", "SASGWcfProxy.DLL", "SASGZipLib.DLL", "sasgsrv.ini")
 
 	#BUILD SOLUTION
+	$resourcesNames | foreach { Copy-Item $($resourcesDir + $_) -Force -Destination $($currentDataDownloadSolutionDir + "\Resources\SASGrup") }
 	& "$env:SystemRoot\Microsoft.Net\Framework\v3.5\MsBuild.exe" $($currentDataDownloadSolutionDir+"\SASCurrentDataDownload.sln") /maxcpucount /verbosity:minimal /t:ReBuild "/p:Configuration=Debug"
 	Write-Host -Fore Cyan "Solution build terminated"
 
 	#COPY FILES TO GIT REPO Dir
-	if( UserWantsToStop "Copy to git repo" ) { return }
-	Get-ChildItem $($currentDataDownloadSolutionDir + "\SASCurrentDataDownload.Service\Bin\Debug") | ? { !($_ -match "^(.*config|.*log|.*\.vshost\..*)$") } | foreach { Copy-Item $_.FullName -Destination $gitRepoDir }
+	if( UserWantsToStop "Copy to git repository" ) { return }
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir checkout $branch
+	Get-ChildItem $($currentDataDownloadSolutionDir + "\SASCurrentDataDownload.Service\Bin\Debug") | ? { !($_ -match "^(sasgsrv\.ini|.*config|.*log|.*\.vshost\..*)$") } | foreach { Copy-Item $_.FullName -Destination $gitRepoDir }
 	Write-Host -Fore Cyan "Done files copy"
 
 	#COMMIT CHANGES
-	if( UserWantsToStop "Commit changes to remote" ) { return }
+	if( UserWantsToStop "Commit changes to local repository" ) { return }
 	$messageFromSourceGitRepo = & git --git-dir="$($currentDataDownloadSolutionDir + "\.git")" --work-tree=$currentDataDownloadSolutionDir log -1 --pretty=%B
 	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir add -A
 	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir commit -am $messageFromSourceGitRepo
 	Write-Host -Fore Cyan "Commited the files"
 
 	#PUBLISH CHANGES TO REMOTE
-	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir push origin master
+	if( UserWantsToStop "Publish changes to remote" ) { return }
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir push sas $branch:$branch
 	Write-Host -Fore Cyan "Published the files"
 }
 
@@ -137,14 +152,17 @@ function Publish-Site()
 	Write-Host -Fore Cyan "Done files copy"
 
 	#COMMIT CHANGES
-	if( UserWantsToStop "Commit changes to remote" ) { return }
+	if( UserWantsToStop "Commit changes to repository" ) { return }
 	$messageFromSourceGitRepo = & git --git-dir="$($solutionDir + "\.git")" --work-tree=$solutionDir log -1 --pretty=%B
 	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir add -A
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir checkout HEAD Web.config
+	#"$($gitRepoDir+"\Web.config")"
 	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir commit -am $messageFromSourceGitRepo
 	Write-Host -Fore Cyan "Commited the files"
 
 	#PUBLISH CHANGES TO REMOTE
-	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir push origin master
+	if( UserWantsToStop "Publish changes to remote" ) { return }
+	& git --git-dir="$($gitRepoDir + "\.git")" --work-tree=$gitRepoDir push sas master
 	Write-Host -Fore Cyan "Published the files"
 }
 
